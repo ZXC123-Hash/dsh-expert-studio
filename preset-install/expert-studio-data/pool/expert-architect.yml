@@ -39,7 +39,8 @@ tools:
   - web_search
   - fs
 model:
-  primary: modlens-sensenova/deepseek-v4-flash
+  primary: modlens-sensenova/deepseek-v4-pro
   fallback: opencode-go/deepseek-v4-pro
+channel: channel-sensenova-pro
 created: '2026-08-20T22:00:00+08:00'
 updated: '2026-08-20T22:00:00+08:00'

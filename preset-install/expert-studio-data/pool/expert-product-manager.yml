@@ -37,5 +37,6 @@ tools:
 model:
   primary: modlens-sensenova/deepseek-v4-flash
   fallback: opencode-go/deepseek-v4-flash
+channel: channel-sensenova-flash
 created: '2026-08-20T22:00:00+08:00'
 updated: '2026-08-20T22:00:00+08:00'

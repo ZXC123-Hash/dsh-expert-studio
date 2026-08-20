@@ -1,0 +1,45 @@
+{
+  "name": "dsh-expert-studio",
+  "version": "0.3.0",
+  "description": "DeepSeek Harness 多Agent协作工作室插件 — 创造模式 + 协作模式",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/",
+    "presets/",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "node --test dist/__tests__/*.test.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "dsh",
+    "deepseek",
+    "deepseek-harness",
+    "plugin",
+    "multi-agent",
+    "expert",
+    "collaboration"
+  ],
+  "author": "ZXC123-Hash",
+  "license": "MIT",
+  "peerDependencies": {
+    "@anthropic-ai/cordis": ">=3.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "@types/node": "^22.0.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "cordis.patch.yml"
+    }
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  }
+}

@@ -1,0 +1,56 @@
+# dsh-expert-studio Cordis 配置
+# 本文件定义插件如何 patch 到 dsh 运行时
+
+# 插件元信息
+plugin:
+  name: dsh-expert-studio
+  version: 0.3.0
+  description: 多Agent协作工作室 — 创造模式 + 协作模式
+
+# 预设注册
+presets:
+  - name: expert-studio:create
+    displayName: "🧪 专家工作室 · 创造模式"
+    description: 通过对话创建/编辑专家与专家团
+    tools:
+      - expert_list
+      - expert_get
+      - expert_search
+      - expert_delete
+      - squad_list
+      - squad_get
+      - create_start
+      - create_message
+      - create_confirm
+
+  - name: expert-studio:collab
+    displayName: "🤝 专家工作室 · 协作模式"
+    description: 选择专家/专家团，让团长调度多专家协作完成任务
+    tools:
+      - expert_list
+      - expert_get
+      - expert_search
+      - squad_list
+      - squad_get
+      - collab_start
+      - collab_plan
+      - collab_execute
+      - collab_synthesize
+      - collab_monitor
+
+# 工具注册
+tools:
+  - expert_list
+  - expert_get
+  - expert_search
+  - expert_delete
+  - squad_list
+  - squad_get
+  - create_start
+  - create_message
+  - create_confirm
+  - collab_start
+  - collab_plan
+  - collab_execute
+  - collab_synthesize
+  - collab_monitor

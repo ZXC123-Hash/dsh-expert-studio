@@ -489,7 +489,7 @@ export function registerAllTools(
       name: 'monitor_events',
       description: '查看最近的活动日志（LLM 调用、任务执行、专家创建等）',
       parameters: {
-        limit: { type: 'integer', description: '返回条数（默认 20，最大 100）' },
+        limit: { type: 'number', description: '返回条数（默认 20，最大 100）' },
       },
       handler: async (args) => {
         const limit = Math.min((args.limit as number) || 20, 100);
@@ -498,7 +498,7 @@ export function registerAllTools(
         return `📋 **最近活动**（共 ${events.length} 条）\n\n` +
           events.map(e => {
             const time = new Date(e.timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-            const type = { task: '🎯', llm_call: '🤖', expert_create: '✨', error: '❌', info: 'ℹ️' }[e.type] || '•';
+            const type = { task: '🎯', llm_call: '🤖', expert_create: '✨', expert_use: '👤', error: '❌', info: 'ℹ️' }[e.type] || '•';
             const msg = e.message || e.taskDescription || e.expertName || e.type;
             return `${time} ${type} ${msg}`;
           }).join('\n');

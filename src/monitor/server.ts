@@ -5,12 +5,10 @@
 import * as http from 'http';
 import * as fs from 'fs';
 import * as path from 'path';
-import { fileURLToPath } from 'url';
 import { MonitorStore } from './monitor-store.js';
 import type { ExpertPool } from '../pool/expert-pool.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = path.resolve('web', 'public');
 
 export class MonitorServer {
   private server: http.Server | null = null;

@@ -327,7 +327,7 @@ ${expertSummary}
           temperature: 0.5,
         });
         output = response.content;
-        tokenUsage = response.usage;
+        tokenUsage = { input: response.usage.inputTokens, output: response.usage.outputTokens, total: response.usage.totalTokens };
         model = response.model;
         provider = response.provider;
       } catch (err: any) {

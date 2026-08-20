@@ -27,8 +27,11 @@
   ],
   "author": "ZXC123-Hash",
   "license": "MIT",
-  "peerDependencies": {
-    "@anthropic-ai/cordis": ">=3.0.0"
+  "peerDependencies": {},
+  "peerDependenciesMeta": {
+    "@anthropic-ai/cordis": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "typescript": "^5.6.0",

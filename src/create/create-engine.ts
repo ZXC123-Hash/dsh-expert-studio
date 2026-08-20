@@ -5,6 +5,7 @@
 
 import type { ExpertProfile, SquadProfile, ExpertTool } from '../types.js';
 import type { ExpertPool } from '../pool/expert-pool.js';
+import type { LLMAdapter, LLMMessage } from '../llm-adapter.js';
 
 // ============================================================
 // 创造会话状态
@@ -29,10 +30,17 @@ export interface CreateSession {
 
 export class CreateEngine {
   private pool: ExpertPool;
+  private llm?: LLMAdapter;
   private sessions: Map<string, CreateSession> = new Map();
 
-  constructor(pool: ExpertPool) {
+  constructor(pool: ExpertPool, llm?: LLMAdapter) {
     this.pool = pool;
+    this.llm = llm;
+  }
+
+  /** 注入 LLM 适配器（可在初始化后延迟注入） */
+  setLLM(llm: LLMAdapter): void {
+    this.llm = llm;
   }
 
   /** 开始创造会话 */
@@ -171,16 +179,28 @@ export class CreateEngine {
   }
 
   private async generateReply(session: CreateSession): Promise<string> {
-    // 注意：实际实现中，这里会调用 dsh 的 ctx.llm.chat() 或类似接口
-    // 当前返回引导性提示，等待 dsh 运行时集成
     const lastMsg = session.messages[session.messages.length - 1];
 
+    // 如果有 LLM 适配器，调用真实的 LLM
+    if (this.llm) {
+      const messages: LLMMessage[] = session.messages.map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+      try {
+        const response = await this.llm.chat(messages, { temperature: 0.7 });
+        return response.content;
+      } catch (err: any) {
+        return `[LLM Error] ${err.message}\n\n请重试或手动描述你想要的专家。`;
+      }
+    }
+
+    // 降级：无 LLM 时使用固定引导
     if (session.messages.length <= 2) {
-      // 第一轮：引导用户开始
       if (session.type === 'expert') {
         return `好的，让我们开始创建一位新专家！\n\n请告诉我：\n- 这位专家擅长什么领域？\n- 你希望 TA 是什么风格？（严谨/创意/务实/...）\n- TA 主要帮你完成什么类型的任务？\n\n你可以简单描述，我来帮你整理成完整档案。`;
       } else {
-        // 先列出已有专家
         const experts = this.pool.listExperts();
         let expertList = '当前专家池：\n';
         if (experts.length === 0) {
@@ -194,8 +214,7 @@ export class CreateEngine {
       }
     }
 
-    // 后续轮次：需要 LLM 实际生成
-    return `[LLM_INTEGRATION_PENDING] 需要 dsh ctx.llm 接口支持。\n用户说：${lastMsg.content}`;
+    return `[LLM 未接入] 请在 dsh 运行时环境中使用，或注入 LLM 适配器。\n用户说：${lastMsg.content}`;
   }
 
   /** 尝试从对话中提取专家档案（简化版，实际应调用 LLM 解析） */

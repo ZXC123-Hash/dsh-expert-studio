@@ -12,6 +12,7 @@ import type {
   MonitorSnapshot,
 } from '../types.js';
 import type { ExpertPool } from '../pool/expert-pool.js';
+import type { LLMAdapter, LLMMessage } from '../llm-adapter.js';
 
 // ============================================================
 // 协作会话
@@ -41,10 +42,17 @@ export interface CollabSession {
 
 export class TeamLeader {
   private pool: ExpertPool;
+  private llm?: LLMAdapter;
   private sessions: Map<string, CollabSession> = new Map();
 
-  constructor(pool: ExpertPool) {
+  constructor(pool: ExpertPool, llm?: LLMAdapter) {
     this.pool = pool;
+    this.llm = llm;
+  }
+
+  /** 注入 LLM 适配器 */
+  setLLM(llm: LLMAdapter): void {
+    this.llm = llm;
   }
 
   /** 开始协作会话 */
@@ -219,14 +227,54 @@ export class TeamLeader {
     goal: string,
     experts: ExpertProfile[]
   ): Promise<TaskAssignment[]> {
-    // 注意：实际需要调用 LLM 进行智能任务分解
-    // 当前为简化版：每个专家分配一个子任务
+    // 如果有 LLM，让团长智能分解任务
+    if (this.llm) {
+      const expertSummary = experts.map((e) =>
+        `- ${e.identity.name}（${e.id}）：擅长 ${e.persona.domains.join('、')}，技能：${e.skills.join('、')}`
+      ).join('\n');
 
+      const messages: LLMMessage[] = [
+        {
+          role: 'system',
+          content: `你是多专家协作的团长。你的任务是把用户目标拆解为子任务，分配给合适的专家。
+可用专家：
+${expertSummary}
+
+请输出 JSON 数组，每个元素包含：
+- taskId: "task_0" 格式
+- expertId: 分配的专家 ID
+- description: 具体任务描述（结合该专家的专业领域）
+- dependsOn: 依赖的其他 taskId 数组（无依赖则为 []）
+- priority: 数字（越小越高）
+
+只输出 JSON，不要其他文字。`,
+        },
+        { role: 'user', content: `目标：${goal}` },
+      ];
+
+      try {
+        const response = await this.llm.chat(messages, { temperature: 0.3 });
+        const parsed = JSON.parse(response.content);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((item: any, i: number) => ({
+            taskId: item.taskId || `task_${i}`,
+            expertId: item.expertId || experts[i % experts.length].id,
+            description: item.description || '',
+            dependsOn: Array.isArray(item.dependsOn) ? item.dependsOn : [],
+            priority: item.priority ?? i,
+          }));
+        }
+      } catch (err: any) {
+        console.warn(`[TeamLeader] LLM task generation failed, using fallback: ${err.message}`);
+      }
+    }
+
+    // 降级：每个专家分配一个子任务，全部并行
     return experts.map((expert, index) => ({
       taskId: `task_${index}`,
       expertId: expert.id,
       description: `基于你的专业领域「${expert.persona.domains.join(', ')}」，为以下目标贡献你的专业能力：\n\n目标：${goal}`,
-      dependsOn: [], // 简化版：全部并行
+      dependsOn: [],
       priority: index,
     }));
   }
@@ -241,10 +289,50 @@ export class TeamLeader {
     }
 
     const startTime = Date.now();
+    let output: string;
+    let tokenUsage = { input: 0, output: 0, total: 0 };
+    let model = expert.modelConfig?.defaultModel ?? 'default';
+    let provider = expert.modelConfig?.providers[0]?.api ?? 'default';
 
-    // 注意：实际需要调用 dsh ctx.llm 以专家人设执行任务
-    // 当前为占位实现
-    const output = `[PENDING_LLM] 需要 dsh ctx.llm 接口。\n\n专家：${expert.identity.name}\n领域：${expert.persona.domains.join(', ')}\n任务：${assignment.description}`;
+    if (this.llm) {
+      // 用专家人设构建 system prompt
+      const systemPrompt = [
+        `你是「${expert.identity.name}」。`,
+        `${expert.identity.tagline}`,
+        '',
+        `性格：${expert.persona.personality}`,
+        `立场：${expert.persona.stance}`,
+        `擅长领域：${expert.persona.domains.join('、')}`,
+        '',
+        `工作流程：`,
+        ...expert.methodology.workflow.map((w, i) => `${i + 1}. ${w}`),
+        `交付标准：${expert.methodology.deliveryStandard}`,
+        '',
+        `技能：${expert.skills.join('、')}`,
+        '',
+        `请严格按照你的角色和方法论完成任务。`,
+      ].join('\n');
+
+      const messages: LLMMessage[] = [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: assignment.description },
+      ];
+
+      try {
+        const response = await this.llm.chat(messages, {
+          model: expert.modelConfig?.defaultModel,
+          temperature: 0.5,
+        });
+        output = response.content;
+        tokenUsage = response.usage;
+        model = response.model;
+        provider = response.provider;
+      } catch (err: any) {
+        output = `[LLM Error] ${err.message}`;
+      }
+    } else {
+      output = `[LLM 未接入] 请在 dsh 运行时环境中使用。\n\n专家：${expert.identity.name}\n领域：${expert.persona.domains.join(', ')}\n任务：${assignment.description}`;
+    }
 
     const duration = Date.now() - startTime;
 
@@ -253,9 +341,9 @@ export class TeamLeader {
       expertId: expert.id,
       status: 'success',
       output,
-      tokenUsage: { input: 0, output: 0, total: 0 },
-      model: expert.modelConfig?.defaultModel ?? 'default',
-      provider: expert.modelConfig?.providers[0]?.api ?? 'default',
+      tokenUsage,
+      model,
+      provider,
       durationMs: duration,
     };
   }

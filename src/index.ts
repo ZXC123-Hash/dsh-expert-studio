@@ -19,6 +19,7 @@ import { TeamLeader } from './collab/team-leader.js';
 import { registerAllTools, type ToolDefinition } from './tools/register-tools.js';
 import { ObsidianVault } from './tools/ob-vault.js';
 import { MemoryBus } from './memory/memory-bus.js';
+import { createDshLLMAdapter, type LLMAdapter } from './llm-adapter.js';
 
 // ============================================================
 // 插件导出（dsh plugin 格式）
@@ -38,10 +39,13 @@ export function apply(ctx: any): void {
   // 确保目录存在
   fs.mkdirSync(poolPath, { recursive: true });
 
+  // ── 初始化 LLM 适配器 ──
+  const llm = createDshLLMAdapter(ctx, process.env.DSH_DEFAULT_MODEL);
+
   // ── 初始化核心模块 ──
   const pool = new ExpertPool(poolPath);
-  const createEngine = new CreateEngine(pool);
-  const teamLeader = new TeamLeader(pool);
+  const createEngine = new CreateEngine(pool, llm);
+  const teamLeader = new TeamLeader(pool, llm);
 
   // ── 初始化可选道具 ──
   let obVault: ObsidianVault | undefined;

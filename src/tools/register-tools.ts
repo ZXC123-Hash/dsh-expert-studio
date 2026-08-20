@@ -7,6 +7,7 @@ import type { CreateEngine } from '../create/create-engine.js';
 import type { TeamLeader } from '../collab/team-leader.js';
 import type { ObsidianVault } from './ob-vault.js';
 import type { MemoryBus } from '../memory/memory-bus.js';
+import { importSeedExperts, getSeedExperts, getSeedExpertsByDomain } from '../pool/seed-experts.js';
 
 // ============================================================
 // 工具定义接口（兼容 dsh defineTool 风格）
@@ -271,6 +272,37 @@ export function registerAllTools(
         (mem) => `• ${mem.expertName}：${mem.tokenUsage.total} tokens（模型：${mem.model}，渠道：${mem.provider}，状态：${mem.status}）`
       );
       return `📊 监控面板\n\n${lines.join('\n')}\n\n**汇总**：总 Token ${m.summary.totalTokens}（输入 ${m.summary.totalInput} / 输出 ${m.summary.totalOutput}）`;
+    },
+  });
+
+  // ──────────────────────────────────────────
+  // 种子专家导入工具
+  // ──────────────────────────────────────────
+
+  tools.push({
+    name: 'seed_import',
+    description: '一键导入 10 个预置种子专家到专家池（产品经理/全栈/设计师/文案/数据分析/营销/架构/测试/项目/研究员）',
+    parameters: {
+      force: { type: 'boolean', description: '是否覆盖已存在的同名专家（默认 false）' },
+    },
+    handler: async (args) => {
+      const result = importSeedExperts(pool, (args.force as boolean) || false);
+      return `导入完成：✅ 新增 ${result.imported} 位，⏭️ 跳过 ${result.skipped} 位${result.errors.length > 0 ? `\n❌ 错误：${result.errors.join('; ')}` : ''}`;
+    },
+  });
+
+  tools.push({
+    name: 'seed_preview',
+    description: '预览可导入的种子专家列表（不执行导入）',
+    parameters: {
+      domain: { type: 'string', description: '可选：按领域筛选（如 "产品"、"开发"、"设计"）' },
+    },
+    handler: async (args) => {
+      const experts = args.domain
+        ? getSeedExpertsByDomain(args.domain as string)
+        : getSeedExperts();
+      if (experts.length === 0) return `没有匹配「${args.domain}」的种子专家。`;
+      return experts.map((e) => `${e.identity.avatar} **${e.identity.name}**（${e.id}）\n  ${e.identity.tagline}\n  领域：${e.persona.domains.join(', ')}`).join('\n\n');
     },
   });
 

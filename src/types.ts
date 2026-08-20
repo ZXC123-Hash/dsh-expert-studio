@@ -47,7 +47,7 @@ export interface ModelTier {
   /** 对应模型名称 */
   model: string;
   /** 适用场景说明 */
- 适用: string;
+ applicable: string;
 }
 
 export type RoutingStrategy = 'auto' | 'manual' | 'default_only';

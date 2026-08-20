@@ -304,7 +304,7 @@ export class ExpertPool {
       profile.modelConfig.tiers.forEach((t) => {
         lines.push(`    - tier: "${t.tier}"`);
         lines.push(`      model: "${t.model}"`);
-        lines.push(`      适用: "${this.escapeYaml(t.适用)}"`);
+        lines.push(`      applicable: "${this.escapeYaml(t.applicable)}"`);
       });
     }
 

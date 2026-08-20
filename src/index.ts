@@ -20,6 +20,8 @@ import { registerAllTools, type ToolDefinition } from './tools/register-tools.js
 import { ObsidianVault } from './tools/ob-vault.js';
 import { MemoryBus } from './memory/memory-bus.js';
 import { createDshLLMAdapter, type LLMAdapter } from './llm-adapter.js';
+import { MonitorStore } from './monitor/monitor-store.js';
+import { MonitorServer } from './monitor/server.js';
 
 // ============================================================
 // 插件导出（dsh plugin 格式）
@@ -39,13 +41,23 @@ export function apply(ctx: any): void {
   // 确保目录存在
   fs.mkdirSync(poolPath, { recursive: true });
 
+  // ── 初始化核心存储 ──
+  const pool = new ExpertPool(poolPath);
+
+  // ── 初始化监控 ──
+  const monitorDir = path.join(dshHome, 'expert-studio', 'monitor');
+  fs.mkdirSync(monitorDir, { recursive: true });
+  const monitorStore = new MonitorStore(monitorDir);
+  const monitorPort = parseInt(process.env.DSH_MONITOR_PORT || '7890', 10);
+  const monitorServer = new MonitorServer(monitorStore, pool, monitorPort);
+  monitorServer.start();
+
   // ── 初始化 LLM 适配器 ──
   const llm = createDshLLMAdapter(ctx, process.env.DSH_DEFAULT_MODEL);
 
-  // ── 初始化核心模块 ──
-  const pool = new ExpertPool(poolPath);
-  const createEngine = new CreateEngine(pool, llm);
-  const teamLeader = new TeamLeader(pool, llm);
+  // ── 初始化引擎 ──
+  const createEngine = new CreateEngine(pool, llm, monitorStore);
+  const teamLeader = new TeamLeader(pool, llm, monitorStore);
 
   // ── 初始化可选道具 ──
   let obVault: ObsidianVault | undefined;
@@ -73,7 +85,7 @@ export function apply(ctx: any): void {
   }
 
   // ── 注册工具 ──
-  const tools = registerAllTools(pool, createEngine, teamLeader, obVault, memoryBus);
+  const tools = registerAllTools(pool, createEngine, teamLeader, obVault, memoryBus, monitorStore);
 
   for (const tool of tools) {
     // 使用 dsh defineTool 风格注册
@@ -120,6 +132,7 @@ export function apply(ctx: any): void {
   });
 
   ctx.on?.('session:end', () => {
+    monitorServer.stop();
     console.log('[dsh-expert-studio] Session ended.');
   });
 }
@@ -229,3 +242,5 @@ export { CreateEngine } from './create/create-engine.js';
 export { TeamLeader } from './collab/team-leader.js';
 export { ObsidianVault } from './tools/ob-vault.js';
 export { MemoryBus } from './memory/memory-bus.js';
+export { MonitorStore } from './monitor/monitor-store.js';
+export { MonitorServer } from './monitor/server.js';

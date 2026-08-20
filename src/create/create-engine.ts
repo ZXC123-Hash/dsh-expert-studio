@@ -6,6 +6,7 @@
 import type { ExpertProfile, SquadProfile, ExpertTool } from '../types.js';
 import type { ExpertPool } from '../pool/expert-pool.js';
 import type { LLMAdapter, LLMMessage } from '../llm-adapter.js';
+import type { MonitorStore } from '../monitor/monitor-store.js';
 
 // ============================================================
 // 创造会话状态
@@ -31,11 +32,13 @@ export interface CreateSession {
 export class CreateEngine {
   private pool: ExpertPool;
   private llm?: LLMAdapter;
+  private monitor?: MonitorStore;
   private sessions: Map<string, CreateSession> = new Map();
 
-  constructor(pool: ExpertPool, llm?: LLMAdapter) {
+  constructor(pool: ExpertPool, llm?: LLMAdapter, monitor?: MonitorStore) {
     this.pool = pool;
     this.llm = llm;
+    this.monitor = monitor;
   }
 
   /** 注入 LLM 适配器（可在初始化后延迟注入） */
@@ -117,6 +120,7 @@ export class CreateEngine {
     };
 
     this.pool.createExpert(profile);
+    this.monitor?.recordExpertCreate(profile.id, profile.identity.name);
     session.status = 'done';
     return profile;
   }

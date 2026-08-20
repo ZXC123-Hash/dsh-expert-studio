@@ -13,6 +13,7 @@ import type {
 } from '../types.js';
 import type { ExpertPool } from '../pool/expert-pool.js';
 import type { LLMAdapter, LLMMessage } from '../llm-adapter.js';
+import type { MonitorStore } from '../monitor/monitor-store.js';
 
 // ============================================================
 // 协作会话
@@ -43,11 +44,13 @@ export interface CollabSession {
 export class TeamLeader {
   private pool: ExpertPool;
   private llm?: LLMAdapter;
+  private monitor?: MonitorStore;
   private sessions: Map<string, CollabSession> = new Map();
 
-  constructor(pool: ExpertPool, llm?: LLMAdapter) {
+  constructor(pool: ExpertPool, llm?: LLMAdapter, monitor?: MonitorStore) {
     this.pool = pool;
     this.llm = llm;
+    this.monitor = monitor;
   }
 
   /** 注入 LLM 适配器 */
@@ -335,6 +338,27 @@ ${expertSummary}
     }
 
     const duration = Date.now() - startTime;
+
+    // 记录到监控
+    this.monitor?.recordLLMCall({
+      expertId: expert.id,
+      expertName: expert.identity.name,
+      model,
+      provider,
+      tokenUsage,
+      duration,
+      status: 'success',
+    });
+
+    this.monitor?.recordTask({
+      taskId: assignment.taskId,
+      expertId: expert.id,
+      expertName: expert.identity.name,
+      description: assignment.description,
+      duration,
+      status: 'success',
+      tokenUsage,
+    });
 
     return {
       assignmentId: assignment.taskId,

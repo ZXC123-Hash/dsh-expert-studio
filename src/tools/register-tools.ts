@@ -7,6 +7,7 @@ import type { CreateEngine } from '../create/create-engine.js';
 import type { TeamLeader } from '../collab/team-leader.js';
 import type { ObsidianVault } from './ob-vault.js';
 import type { MemoryBus } from '../memory/memory-bus.js';
+import type { MonitorStore } from '../monitor/monitor-store.js';
 import { importSeedExperts, getSeedExperts, getSeedExpertsByDomain } from '../pool/seed-experts.js';
 
 // ============================================================
@@ -37,6 +38,7 @@ export function registerAllTools(
   teamLeader: TeamLeader,
   obVault?: ObsidianVault,
   memoryBus?: MemoryBus,
+  monitor?: MonitorStore,
 ): ToolDefinition[] {
   const tools: ToolDefinition[] = [];
 
@@ -445,6 +447,61 @@ export function registerAllTools(
       handler: async (args) => {
         const stats = memoryBus.getStats(args.namespace as string);
         return `📊 记忆统计（${args.namespace}）\n\n• 观察总数：${stats.totalObservations}\n• 参与专家：${stats.experts.join(', ') || '无'}\n• 存储大小：${(stats.totalSize / 1024).toFixed(1)} KB\n\n热门标签：\n${stats.topTags.map((t) => `• ${t.tag}（${t.count}次）`).join('\n') || '无标签'}`;
+      },
+    });
+  }
+
+  // ──────────────────────────────────────────
+  // 监控面板工具（可选）
+  // ──────────────────────────────────────────
+
+  if (monitor) {
+    tools.push({
+      name: 'monitor_dashboard',
+      description: '获取监控面板的实时统计数据（Token 用量、任务执行、专家活动等）',
+      parameters: {},
+      handler: async () => {
+        const summary = monitor.getSummary();
+        const today = monitor.getTodayStats();
+        return `📊 **监控面板**\n\n` +
+          `**今日统计**\n` +
+          `• Token 用量：${today.totalTokens.toLocaleString()}\n` +
+          `• 任务总数：${today.totalTasks}\n` +
+          `• 成功率：${today.successRate}%\n` +
+          `• 平均耗时：${today.avgDuration > 0 ? (today.avgDuration / 1000).toFixed(1) + 's' : '-'}\n\n` +
+          `**系统概况**\n` +
+          `• 总事件数：${summary.totalEvents}\n` +
+          `• 总任务数：${summary.totalTasks}\n` +
+          `• 注册专家：${summary.totalExperts}\n` +
+          `• 运行时长：${summary.uptime}\n\n` +
+          `**模型用量（今日）**\n` +
+          (today.modelUsage.length > 0
+            ? today.modelUsage.map(m => `• ${m.model}：${m.tokens.toLocaleString()} tokens / ${m.calls} 次`).join('\n')
+            : '暂无数据') +
+          `\n\n**Top 专家（今日）**\n` +
+          (today.topExperts.length > 0
+            ? today.topExperts.slice(0, 5).map(e => `• ${e.name}：${e.count} 次任务`).join('\n')
+            : '暂无数据');
+      },
+    });
+
+    tools.push({
+      name: 'monitor_events',
+      description: '查看最近的活动日志（LLM 调用、任务执行、专家创建等）',
+      parameters: {
+        limit: { type: 'integer', description: '返回条数（默认 20，最大 100）' },
+      },
+      handler: async (args) => {
+        const limit = Math.min((args.limit as number) || 20, 100);
+        const events = monitor.getEvents(limit);
+        if (events.length === 0) return '暂无活动记录。';
+        return `📋 **最近活动**（共 ${events.length} 条）\n\n` +
+          events.map(e => {
+            const time = new Date(e.timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+            const type = { task: '🎯', llm_call: '🤖', expert_create: '✨', error: '❌', info: 'ℹ️' }[e.type] || '•';
+            const msg = e.message || e.taskDescription || e.expertName || e.type;
+            return `${time} ${type} ${msg}`;
+          }).join('\n');
       },
     });
   }

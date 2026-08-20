@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DSH Expert Studio - 监控面板</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      color: #e0e0e0;
+      min-height: 100vh;
+    }
+    .header {
+      background: rgba(255,255,255,0.05);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding: 20px 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .header h1 {
+      font-size: 24px;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .header .status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .header .status-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: #4ade80;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+
+    /* 统计卡片 */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 20px;
+      transition: transform 0.2s;
+    }
+    .stat-card:hover { transform: translateY(-2px); }
+    .stat-card .label { font-size: 13px; color: #888; margin-bottom: 8px; }
+    .stat-card .value {
+      font-size: 28px; font-weight: 700;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .stat-card .sub { font-size: 12px; color: #666; margin-top: 4px; }
+
+    /* 面板布局 */
+    .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+    @media (max-width: 900px) { .panels { grid-template-columns: 1fr; } }
+    .panel {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .panel h2 { font-size: 16px; margin-bottom: 16px; color: #b8b8d0; }
+
+    /* 专家列表 */
+    .expert-list { list-style: none; }
+    .expert-item {
+      display: flex;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .expert-item:last-child { border-bottom: none; }
+    .expert-avatar {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 600;
+      margin-right: 12px;
+      flex-shrink: 0;
+    }
+    .expert-info { flex: 1; min-width: 0; }
+    .expert-name { font-size: 14px; font-weight: 500; }
+    .expert-domains { font-size: 12px; color: #888; margin-top: 2px; }
+    .expert-badge {
+      font-size: 11px; padding: 2px 8px;
+      border-radius: 10px;
+      background: rgba(102, 126, 234, 0.2);
+      color: #667eea;
+    }
+
+    /* 活动日志 */
+    .activity-log { max-height: 400px; overflow-y: auto; }
+    .log-item {
+      display: flex;
+      align-items: flex-start;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      font-size: 13px;
+    }
+    .log-time { color: #666; margin-right: 12px; white-space: nowrap; font-family: monospace; }
+    .log-type {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      margin-right: 8px;
+      font-weight: 500;
+    }
+    .log-type.task { background: rgba(74, 222, 128, 0.15); color: #4ade80; }
+    .log-type.llm { background: rgba(168, 85, 247, 0.15); color: #a855f7; }
+    .log-type.expert { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+    .log-type.error { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+    .log-msg { color: #ccc; word-break: break-all; }
+
+    /* Token 图表 */
+    .chart-container { height: 200px; display: flex; align-items: flex-end; gap: 8px; padding-top: 20px; }
+    .chart-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; }
+    .chart-bar {
+      width: 100%;
+      border-radius: 4px 4px 0 0;
+      background: linear-gradient(180deg, #667eea, #764ba2);
+      transition: height 0.5s ease;
+      min-height: 4px;
+    }
+    .chart-label { font-size: 11px; color: #666; margin-top: 6px; }
+    .chart-value { font-size: 11px; color: #888; margin-bottom: 4px; }
+
+    /* 模型用量 */
+    .model-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .model-name { font-family: monospace; font-size: 13px; }
+    .model-tokens { font-size: 12px; color: #888; }
+    .model-bar {
+      height: 4px; border-radius: 2px;
+      background: rgba(102, 126, 234, 0.3);
+      margin-top: 4px;
+      overflow: hidden;
+    }
+    .model-bar-fill {
+      height: 100%; border-radius: 2px;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+    }
+
+    .refresh-btn {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      border: none; color: white;
+      padding: 8px 16px; border-radius: 8px;
+      cursor: pointer; font-size: 13px;
+    }
+    .refresh-btn:hover { opacity: 0.9; }
+
+    .empty-state {
+      text-align: center; padding: 40px;
+      color: #666; font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>⚡ DSH Expert Studio</h1>
+    <div class="status">
+      <div class="status-dot"></div>
+      <span id="status-text">运行中</span>
+      <button class="refresh-btn" onclick="refreshAll()">🔄 刷新</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- 统计卡片 -->
+    <div class="stats-grid" id="stats-grid">
+      <div class="stat-card">
+        <div class="label">总 Token 用量</div>
+        <div class="value" id="stat-tokens">-</div>
+        <div class="sub">今日</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">任务总数</div>
+        <div class="value" id="stat-tasks">-</div>
+        <div class="sub">今日</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">成功率</div>
+        <div class="value" id="stat-success">-</div>
+        <div class="sub">今日</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">专家数量</div>
+        <div class="value" id="stat-experts">-</div>
+        <div class="sub">注册专家</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">平均耗时</div>
+        <div class="value" id="stat-duration">-</div>
+        <div class="sub">每任务</div>
+      </div>
+    </div>
+
+    <!-- 主面板 -->
+    <div class="panels">
+      <!-- 左: 专家列表 -->
+      <div class="panel">
+        <h2>👥 专家库</h2>
+        <ul class="expert-list" id="expert-list">
+          <li class="empty-state">加载中...</li>
+        </ul>
+      </div>
+
+      <!-- 右: 7日 Token 用量 -->
+      <div class="panel">
+        <h2>📊 近 7 日 Token 用量</h2>
+        <div class="chart-container" id="chart-container">
+          <div class="empty-state">暂无数据</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panels">
+      <!-- 左: 模型用量 -->
+      <div class="panel">
+        <h2>🤖 模型用量</h2>
+        <div id="model-usage">
+          <div class="empty-state">暂无数据</div>
+        </div>
+      </div>
+
+      <!-- 右: 活动日志 -->
+      <div class="panel">
+        <h2>📋 最近活动</h2>
+        <div class="activity-log" id="activity-log">
+          <div class="empty-state">暂无活动记录</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = window.location.origin + '/api';
+
+    async function fetchJSON(url) {
+      try {
+        const res = await fetch(url);
+        return await res.json();
+      } catch (e) {
+        console.error('Fetch error:', e);
+        return null;
+      }
+    }
+
+    function formatNumber(n) {
+      if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+      if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+      return n.toString();
+    }
+
+    function formatDuration(ms) {
+      if (ms < 1000) return ms + 'ms';
+      return (ms / 1000).toFixed(1) + 's';
+    }
+
+    function formatTime(iso) {
+      const d = new Date(iso);
+      return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    async function loadSummary() {
+      const data = await fetchJSON(API_BASE + '/summary');
+      if (!data) return;
+      document.getElementById('stat-tokens').textContent = formatNumber(data.totalTokens);
+      document.getElementById('stat-tasks').textContent = data.totalTasks;
+      document.getElementById('stat-experts').textContent = data.totalExperts;
+    }
+
+    async function loadToday() {
+      const data = await fetchJSON(API_BASE + '/today');
+      if (!data) return;
+      document.getElementById('stat-tokens').textContent = formatNumber(data.totalTokens);
+      document.getElementById('stat-tasks').textContent = data.totalTasks;
+      document.getElementById('stat-success').textContent = data.successRate + '%';
+      document.getElementById('stat-duration').textContent = data.avgDuration > 0 ? formatDuration(data.avgDuration) : '-';
+    }
+
+    async function loadExperts() {
+      const data = await fetchJSON(API_BASE + '/experts');
+      const list = document.getElementById('expert-list');
+      if (!data || data.length === 0) {
+        list.innerHTML = '<li class="empty-state">暂无专家，使用创造模式添加</li>';
+        return;
+      }
+      document.getElementById('stat-experts').textContent = data.length;
+      list.innerHTML = data.slice(0, 20).map(e => `
+        <li class="expert-item">
+          <div class="expert-avatar">${(e.identity?.name || '?')[0]}</div>
+          <div class="expert-info">
+            <div class="expert-name">${e.identity?.name || e.id}</div>
+            <div class="expert-domains">${(e.persona?.domains || []).join(', ')}</div>
+          </div>
+          <span class="expert-badge">v${e.version}</span>
+        </li>
+      `).join('');
+    }
+
+    async function loadRecent() {
+      const data = await fetchJSON(API_BASE + '/recent');
+      const container = document.getElementById('chart-container');
+      if (!data || data.length === 0) {
+        container.innerHTML = '<div class="empty-state">暂无数据</div>';
+        return;
+      }
+      const maxTokens = Math.max(...data.map(d => d.totalTokens), 1);
+      container.innerHTML = data.map(d => {
+        const h = Math.max((d.totalTokens / maxTokens) * 160, 4);
+        const dateLabel = d.date.slice(5); // MM-DD
+        return `
+          <div class="chart-bar-wrap">
+            <div class="chart-value">${formatNumber(d.totalTokens)}</div>
+            <div class="chart-bar" style="height:${h}px"></div>
+            <div class="chart-label">${dateLabel}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function loadTodayModels() {
+      const data = await fetchJSON(API_BASE + '/today');
+      const container = document.getElementById('model-usage');
+      if (!data || !data.modelUsage || data.modelUsage.length === 0) {
+        container.innerHTML = '<div class="empty-state">暂无模型调用</div>';
+        return;
+      }
+      const maxTokens = Math.max(...data.modelUsage.map(m => m.tokens), 1);
+      container.innerHTML = data.modelUsage.map(m => `
+        <div class="model-item">
+          <div>
+            <div class="model-name">${m.model}</div>
+            <div class="model-bar"><div class="model-bar-fill" style="width:${(m.tokens/maxTokens)*100}%"></div></div>
+          </div>
+          <div class="model-tokens">${formatNumber(m.tokens)} tokens / ${m.calls} 次</div>
+        </div>
+      `).join('');
+    }
+
+    async function loadEvents() {
+      const data = await fetchJSON(API_BASE + '/events');
+      const log = document.getElementById('activity-log');
+      if (!data || data.length === 0) {
+        log.innerHTML = '<div class="empty-state">暂无活动</div>';
+        return;
+      }
+      const typeMap = {
+        task: '任务', llm_call: 'LLM', expert_create: '专家', error: '错误', info: '信息'
+      };
+      const typeClass = {
+        task: 'task', llm_call: 'llm', expert_create: 'expert', error: 'error', info: 'task'
+      };
+      log.innerHTML = data.slice(0, 50).map(e => `
+        <div class="log-item">
+          <span class="log-time">${formatTime(e.timestamp)}</span>
+          <span class="log-type ${typeClass[e.type] || ''}">${typeMap[e.type] || e.type}</span>
+          <span class="log-msg">${e.message || e.taskDescription || e.expertName || e.type}</span>
+        </div>
+      `).join('');
+    }
+
+    async function refreshAll() {
+      await Promise.all([loadSummary(), loadToday(), loadExperts(), loadRecent(), loadTodayModels(), loadEvents()]);
+    }
+
+    // 首次加载
+    refreshAll();
+
+    // 自动刷新（30秒）
+    setInterval(refreshAll, 30000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,268 @@
+# ─────────────────────────────────────────────────────────────
+# 专家工作室 (Expert Studio) - dsh Agent Preset
+# ─────────────────────────────────────────────────────────────
+# 多Agent协作工作室，提供专家池管理、创造引擎、团队协作等能力。
+#
+# 数据存储路径：DSH_HOME/expert-studio/
+#   pool/          - 专家档案（YAML）
+#   squads/        - 专家团档案（YAML）
+#   memory-bus/    - 记忆总线数据
+#   monitor/       - 监控数据
+#
+# 本预设基于 dsh 内置工具（bash/pwsh/fs/web/subagent）实现全部功能，
+# 无需额外插件依赖。
+
+# ── identity ─────────────────────────────────────────────────
+
+- id: persona
+  name: '@deepseek-ai/dsh-persona'
+  config:
+    text: |
+      你是「专家工作室」—— 一个多Agent专家协作系统。
+
+      ## 你的核心能力
+
+      你管理着一个「专家池」，每个专家是一个拥有专业知识、技能和独特视角的 AI 角色。
+      你可以帮助用户：
+      1. 创建和管理专家（CRUD）
+      2. 通过 AI 对话自动生成专家档案（创造引擎）
+      3. 组建专家团（squad），让团长调度多专家协作完成复杂任务
+      4. 管理共享记忆和知识库
+
+      ## 数据存储
+
+      所有数据存储在 DSH_HOME/expert-studio/ 目录下：
+      - pool/ 目录：每个专家一个 YAML 文件，格式如下：
+        ```yaml
+        id: expert-xxx
+        name: 专家名
+        avatar: emoji或描述
+        tagline: 一句话简介
+        personality: 性格特征
+        stance: 立场/方法论
+        expertise:
+          - 领域1
+          - 领域2
+        skills:
+          - name: 技能名
+            description: 描述
+            level: expert/advanced/intermediate
+        tools:
+          - 工具名
+        model:
+          primary: provider/model
+          fallback: provider/model
+        created: ISO时间
+        updated: ISO时间
+        ```
+      - pool/index.json：专家索引，格式：`{"experts": {"expert-xxx": {"file": "expert-xxx.yml", "name": "...", "expertise": [...]}}}`
+      - squads/ 目录：每个专家团一个 YAML 文件，格式如下：
+        ```yaml
+        id: squad-xxx
+        name: 团队名
+        description: 团队描述
+        leader_id: expert-xxx（团长ID）
+        members:
+          - expert-xxx
+          - expert-yyy
+        sop:
+          phases:
+            - name: 阶段名
+              leader: expert-xxx
+              experts: [expert-xxx]
+              action: 描述
+        created: ISO时间
+        ```
+      - squads/index.json：专家团索引
+
+      ## 工作流程
+
+      ### 专家管理（CRUD）
+      - 列出专家：读取 pool/index.json
+      - 查看专家：读取 pool/{id}.yml
+      - 创建专家：生成 YAML 写入 pool/ 目录，更新 index.json
+      - 编辑专家：修改对应 YAML 文件
+      - 删除专家：删除 YAML 文件，更新 index.json
+      - 搜索专家：遍历 index.json 匹配关键词
+
+      ### 创造引擎（AI 生成专家）
+      当用户说「帮我创建一个专家」时：
+      1. 与用户对话，了解需要什么类型的专家
+      2. 根据描述，AI 生成完整的专家档案（包括人设、技能、方法论等）
+      3. 展示给用户确认/修改
+      4. 确认后写入 pool/ 目录
+
+      ### 专家团管理
+      - 创建专家团：从现有专家中选择成员，指定团长
+      - 定义 SOP：规划协作流程（分阶段、分配任务）
+
+      ### 团队协作模式
+      当用户提出复杂任务时：
+      1. 分析任务 → 推荐合适的专家或专家团
+      2. 启动协作 → 使用 subagent 工具分派子任务
+      3. 团长角色 → 拆解任务、分配给各专家、监控进度
+      4. 整合结果 → 汇总各专家输出，生成最终交付物
+
+      ### 记忆管理
+      - 专家间共享的记忆存储在 memory-bus/ 目录
+      - 每次协作完成后，提取关键结论存入记忆
+      - 下次协作时，先查阅相关记忆，避免重复工作
+
+      ## 工具使用指南
+
+      使用 bash（macOS/Linux）或 pwsh（Windows）执行文件操作：
+      - 读取专家列表：cat/Get-Content pool/index.json
+      - 读取专家详情：cat/Get-Content pool/{id}.yml
+      - 创建/更新文件：写入对应 YAML 文件
+      - 搜索：通过文件内容匹配
+
+      使用 subagent/subagent_fork 实现多专家并行：
+      - 为每个专家创建一个 subagent
+      - 在 subagent 的 prompt 中注入该专家的人设和方法论
+      - 收集各 subagent 的输出，整合为最终结果
+
+      ## 响应格式
+
+      - 列出专家时使用表格：ID | 名称 | 专长 | 简介
+      - 创建/编辑时展示完整 YAML 供用户确认
+      - 协作时展示进度：[阶段] 执行中/已完成
+      - 使用中文回复，技术术语保留英文
+
+      ## 初始化
+
+      首次使用时，如果 pool/ 目录为空，主动引导用户创建第一批专家。
+      提供预设专家模板供快速创建：
+      - 产品经理专家：需求分析、PRD撰写、用户故事
+      - 架构师专家：系统设计、技术选型、架构评审
+      - 代码专家：代码实现、Code Review、性能优化
+      - 测试专家：测试策略、用例设计、自动化测试
+      - 安全专家：安全审计、漏洞分析、合规检查
+
+- id: agent-instructions
+  name: '@deepseek-ai/dsh-agent-instructions'
+  config:
+    maxBytes: 65536
+
+# ── shell tools ──────────────────────────────────────────────
+
+- id: tool-bash
+  name: '@deepseek-ai/dsh-tool-bash'
+  disabled: '!js process.platform === "win32"'
+
+- id: tool-pwsh
+  name: '@deepseek-ai/dsh-tool-pwsh'
+  disabled: '!js process.platform !== "win32"'
+
+# ── filesystem tools ─────────────────────────────────────────
+
+- id: tool-fs
+  name: '@deepseek-ai/dsh-tool-fs'
+
+- id: tool-fs-search
+  name: '@deepseek-ai/dsh-tool-fs-search'
+
+# ── skill tools ──────────────────────────────────────────────
+
+- id: skill-filesystem
+  name: '@deepseek-ai/dsh-skill-filesystem'
+
+- id: tool-skill
+  name: '@deepseek-ai/dsh-tool-skill'
+
+# ── job management ───────────────────────────────────────────
+
+- id: tool-jobs
+  name: '@deepseek-ai/dsh-tool-jobs'
+
+# ── interaction tools ────────────────────────────────────────
+
+- id: tool-goal
+  name: '@deepseek-ai/dsh-tool-goal'
+
+- id: tool-ask-user
+  name: '@deepseek-ai/dsh-tool-ask-user'
+
+- id: tool-todo
+  name: '@deepseek-ai/dsh-tool-todo'
+  config:
+    allowParallelInProgress: true
+
+# ── web tools ────────────────────────────────────────────────
+
+- id: tool-web
+  name: '@deepseek-ai/dsh-tool-web'
+  config:
+    fetch: false
+    searchTimeoutMs: 60000
+
+- id: tool-web-search
+  name: '@deepseek-ai/dsh-tool-web'
+  config:
+    search: true
+    toolName: web_search
+    searchTimeoutMs: 60000
+
+# ── subagent & delegation ────────────────────────────────────
+# 专家团队协作的核心：使用 subagent 模拟多专家并行执行
+
+- id: delegation
+  name: cordis:group
+  group: true
+  isolate:
+    workflowEngine: true
+  config:
+    - id: tool-subagent-control
+      name: '@deepseek-ai/dsh-tool-subagent-control'
+
+    - id: tool-subagent-list-agents
+      name: '@deepseek-ai/dsh-tool-subagent-control/list-agents'
+
+    - id: tool-subagent
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: subagent
+        backgroundMode: continuable
+
+    - id: tool-subagent-fork
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: fork
+        toolName: subagent_fork
+        backgroundMode: continuable
+
+    - id: workflow-worker-thread
+      name: '@deepseek-ai/dsh-workflow-worker-thread'
+      config:
+        provider: spawn
+
+    - id: tool-workflow
+      name: '@deepseek-ai/dsh-tool-workflow'
+
+    - id: tool-ralph
+      name: '@deepseek-ai/dsh-tool-ralph'
+      config:
+        subagentProvider: spawn
+        maxRounds: 64
+
+# ── composition & result processing ──────────────────────────
+
+- id: composition
+  name: cordis:group
+  group: true
+  isolate:
+    composition: true
+    toolResultPruner: true
+  config:
+    - id: composition-basic
+      name: '@deepseek-ai/dsh-composition-basic'
+
+    - id: command-compact
+      name: '@deepseek-ai/dsh-command-compact'
+
+    - id: tool-result-pruner
+      name: '@deepseek-ai/dsh-composition-tool-result-pruner'
+      config:
+        thresholdChars: 8192
+        headChars: 4096
+        tailChars: 1024

@@ -1,0 +1,29 @@
+{
+  "experts": {
+    "expert-product-manager": {
+      "file": "expert-product-manager.yml",
+      "name": "产品专家",
+      "expertise": ["需求分析", "PRD撰写", "用户故事", "产品规划"]
+    },
+    "expert-architect": {
+      "file": "expert-architect.yml",
+      "name": "架构师",
+      "expertise": ["系统设计", "技术选型", "架构评审", "性能优化"]
+    },
+    "expert-developer": {
+      "file": "expert-developer.yml",
+      "name": "开发专家",
+      "expertise": ["代码实现", "Code Review", "调试优化", "最佳实践"]
+    },
+    "expert-security": {
+      "file": "expert-security.yml",
+      "name": "安全专家",
+      "expertise": ["安全审计", "漏洞分析", "渗透测试", "合规检查"]
+    },
+    "expert-writer": {
+      "file": "expert-writer.yml",
+      "name": "文案专家",
+      "expertise": ["技术写作", "文档撰写", "内容创作", "翻译润色"]
+    }
+  }
+}

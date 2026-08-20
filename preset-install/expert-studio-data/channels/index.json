@@ -1,0 +1,34 @@
+{
+  "channels": {
+    "channel-sensenova-flash": {
+      "provider": "modlens-sensenova",
+      "model": "deepseek-v4-flash",
+      "status": "untested"
+    },
+    "channel-sensenova-pro": {
+      "provider": "modlens-sensenova",
+      "model": "deepseek-v4-pro",
+      "status": "untested"
+    },
+    "channel-opencode-flash": {
+      "provider": "opencode-go",
+      "model": "deepseek-v4-flash",
+      "status": "untested"
+    },
+    "channel-opencode-pro": {
+      "provider": "opencode-go",
+      "model": "deepseek-v4-pro",
+      "status": "untested"
+    },
+    "channel-ailzd": {
+      "provider": "ailzd",
+      "model": "default",
+      "status": "untested"
+    },
+    "channel-molifan": {
+      "provider": "molifan",
+      "model": "default",
+      "status": "untested"
+    }
+  }
+}

@@ -1,0 +1,56 @@
+# ─────────────────────────────────────────────────────────────
+# 模型渠道配置 (Channel Configuration)
+# ─────────────────────────────────────────────────────────────
+# 记录所有可用的 API 模型渠道，供创造模式测试和分配
+
+channels:
+  # 以下为种子渠道，基于 settings.yaml 中的 provider 配置
+  # 安装后由创造模式自动检测状态
+
+  - id: channel-sensenova-flash
+    name: SenseNova Flash
+    provider: modlens-sensenova
+    model: deepseek-v4-flash
+    status: untested
+    last_tested: null
+    notes: "主力模型，速度快性价比高"
+
+  - id: channel-sensenova-pro
+    name: SenseNova Pro
+    provider: modlens-sensenova
+    model: deepseek-v4-pro
+    status: untested
+    last_tested: null
+    notes: "Pro 模型，能力更强，预览版"
+
+  - id: channel-opencode-flash
+    name: OpenCode Flash
+    provider: opencode-go
+    model: deepseek-v4-flash
+    status: untested
+    last_tested: null
+    notes: "OpenCode 中转 Flash"
+
+  - id: channel-opencode-pro
+    name: OpenCode Pro
+    provider: opencode-go
+    model: deepseek-v4-pro
+    status: untested
+    last_tested: null
+    notes: "OpenCode 中转 Pro"
+
+  - id: channel-ailzd
+    name: AILZD 渠道
+    provider: ailzd
+    model: default
+    status: untested
+    last_tested: null
+    notes: "ailzd 中转站"
+
+  - id: channel-molifan
+    name: 魔力范渠道
+    provider: molifan
+    model: default
+    status: untested
+    last_tested: null
+    notes: "molifan 中转站"

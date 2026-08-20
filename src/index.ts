@@ -17,6 +17,8 @@ import { ExpertPool } from './pool/expert-pool.js';
 import { CreateEngine } from './create/create-engine.js';
 import { TeamLeader } from './collab/team-leader.js';
 import { registerAllTools, type ToolDefinition } from './tools/register-tools.js';
+import { ObsidianVault } from './tools/ob-vault.js';
+import { MemoryBus } from './memory/memory-bus.js';
 
 // ============================================================
 // 插件导出（dsh plugin 格式）
@@ -41,8 +43,33 @@ export function apply(ctx: any): void {
   const createEngine = new CreateEngine(pool);
   const teamLeader = new TeamLeader(pool);
 
+  // ── 初始化可选道具 ──
+  let obVault: ObsidianVault | undefined;
+  let memoryBus: MemoryBus | undefined;
+
+  // OB 记忆库（如果配置了 vault 路径）
+  const obVaultPath = process.env.DSH_OB_VAULT_PATH;
+  if (obVaultPath) {
+    try {
+      obVault = new ObsidianVault(obVaultPath);
+      console.log(`[dsh-expert-studio] OB Vault loaded: ${obVaultPath}`);
+    } catch (err) {
+      console.warn(`[dsh-expert-studio] OB Vault init failed: ${err}`);
+    }
+  }
+
+  // 记忆压缩层
+  const enableMemoryBus = process.env.DSH_MEMORY_BUS !== 'false';
+  if (enableMemoryBus) {
+    const memBusPath = path.join(dshHome, 'expert-studio', 'memory-bus');
+    memoryBus = new MemoryBus({
+      storagePath: memBusPath,
+      defaultNamespace: 'default',
+    });
+  }
+
   // ── 注册工具 ──
-  const tools = registerAllTools(pool, createEngine, teamLeader);
+  const tools = registerAllTools(pool, createEngine, teamLeader, obVault, memoryBus);
 
   for (const tool of tools) {
     // 使用 dsh defineTool 风格注册
@@ -196,3 +223,5 @@ export type { ExpertProfile, SquadProfile, PoolIndex, TaskPlan, TaskResult, Moni
 export { ExpertPool } from './pool/expert-pool.js';
 export { CreateEngine } from './create/create-engine.js';
 export { TeamLeader } from './collab/team-leader.js';
+export { ObsidianVault } from './tools/ob-vault.js';
+export { MemoryBus } from './memory/memory-bus.js';

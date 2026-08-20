@@ -56,14 +56,42 @@ presets/
 └── collab-mode/      # 协作模式预设
 ```
 
+## 🔧 工具清单
+
+| 工具 | 功能 |
+|---|---|
+| `expert_list` | 列出所有专家 |
+| `expert_get` | 查看专家完整档案 |
+| `expert_search` | 按关键词搜索专家 |
+| `expert_delete` | 删除专家 |
+| `squad_list` | 列出所有专家团 |
+| `squad_get` | 查看专家团详情 |
+| `create_start` | 开始创造会话 |
+| `create_message` | 在创造会话中对话 |
+| `create_confirm` | 确认档案入库 |
+| `collab_start` | 启动协作会话 |
+| `collab_plan` | 团长规划任务 |
+| `collab_execute` | 执行任务计划 |
+| `collab_synthesize` | 整合最终结果 |
+| `collab_monitor` | 实时监控面板 |
+| `ob_list_notes` | 列出 OB 笔记 |
+| `ob_read_note` | 读取 OB 笔记 |
+| `ob_write_note` | 写入 OB 笔记 |
+| `ob_search` | 全文搜索 OB 库 |
+| `ob_backlinks` | 查看反向链接 |
+| `ob_stats` | 知识库统计 |
+| `memory_store` | 存储压缩观察 |
+| `memory_recall` | 召回相关记忆 |
+| `memory_stats` | 记忆总线统计 |
+
 ## 📋 开发状态
 
 - [x] 阶段1：骨架搭建
 - [x] 阶段2：专家池 CRUD
 - [x] 阶段3：创造模式
-- [ ] 阶段4：记忆库道具
-- [ ] 阶段5：协作模式
-- [ ] 阶段6：能力集成
+- [x] 阶段4：记忆库道具（OB 文件直读 + 记忆压缩层）
+- [x] 阶段5：协作模式（团长调度框架）
+- [ ] 阶段6：能力集成（LLM 运行时接入 + agency-agents 导入）
 - [ ] 阶段7：Web UI 监控面板
 - [ ] 阶段8：测试
 - [ ] 阶段9：打包发布

@@ -5,6 +5,8 @@
 import type { ExpertPool } from '../pool/expert-pool.js';
 import type { CreateEngine } from '../create/create-engine.js';
 import type { TeamLeader } from '../collab/team-leader.js';
+import type { ObsidianVault } from './ob-vault.js';
+import type { MemoryBus } from '../memory/memory-bus.js';
 
 // ============================================================
 // 工具定义接口（兼容 dsh defineTool 风格）
@@ -31,7 +33,9 @@ export interface ToolParam {
 export function registerAllTools(
   pool: ExpertPool,
   createEngine: CreateEngine,
-  teamLeader: TeamLeader
+  teamLeader: TeamLeader,
+  obVault?: ObsidianVault,
+  memoryBus?: MemoryBus,
 ): ToolDefinition[] {
   const tools: ToolDefinition[] = [];
 
@@ -269,6 +273,149 @@ export function registerAllTools(
       return `📊 监控面板\n\n${lines.join('\n')}\n\n**汇总**：总 Token ${m.summary.totalTokens}（输入 ${m.summary.totalInput} / 输出 ${m.summary.totalOutput}）`;
     },
   });
+
+  // ──────────────────────────────────────────
+  // OB 记忆库道具工具（可选）
+  // ──────────────────────────────────────────
+
+  if (obVault) {
+    tools.push({
+      name: 'ob_list_notes',
+      description: '列出 Obsidian 知识库中的所有笔记',
+      parameters: {
+        subfolder: { type: 'string', description: '可选：子目录路径' },
+      },
+      handler: async (args) => {
+        const notes = obVault.listNotes(args.subfolder as string | undefined);
+        if (notes.length === 0) return '知识库中没有找到笔记。';
+        return `共 ${notes.length} 篇笔记：\n${notes.map((n) => `• ${n}`).join('\n')}`;
+      },
+    });
+
+    tools.push({
+      name: 'ob_read_note',
+      description: '读取 Obsidian 知识库中的指定笔记',
+      parameters: {
+        path: { type: 'string', description: '笔记相对路径（如 "日记/2026-08-20.md"）', required: true },
+      },
+      handler: async (args) => {
+        const note = obVault.readNote(args.path as string);
+        if (!note) return `未找到笔记：${args.path}`;
+        return `## ${note.title}\n\n${note.content}\n\n---\n链接：${note.outboundLinks.join(', ') || '无'}\n修改：${note.modifiedAt}`;
+      },
+    });
+
+    tools.push({
+      name: 'ob_write_note',
+      description: '在 Obsidian 知识库中创建或更新笔记',
+      parameters: {
+        path: { type: 'string', description: '笔记相对路径', required: true },
+        content: { type: 'string', description: '笔记内容（Markdown）', required: true },
+      },
+      handler: async (args) => {
+        const note = obVault.writeNote(args.path as string, args.content as string);
+        return `✅ 笔记已保存：${note.filePath}\n标题：${note.title}\n大小：${note.sizeBytes} 字节`;
+      },
+    });
+
+    tools.push({
+      name: 'ob_search',
+      description: '在 Obsidian 知识库中全文搜索',
+      parameters: {
+        query: { type: 'string', description: '搜索关键词', required: true },
+        max_results: { type: 'number', description: '最大结果数（默认20）' },
+      },
+      handler: async (args) => {
+        const results = obVault.searchNotes(args.query as string, {
+          maxResults: (args.max_results as number) || 20,
+        });
+        if (results.length === 0) return `未找到匹配「${args.query}」的笔记。`;
+        return results.map((r) => `• **${r.title}**（${r.filePath}）相关度：${(r.score * 100).toFixed(0)}%\n  ${r.snippets[0] || ''}`).join('\n\n');
+      },
+    });
+
+    tools.push({
+      name: 'ob_backlinks',
+      description: '查看某篇笔记的反向链接（谁链接到了它）',
+      parameters: {
+        path: { type: 'string', description: '笔记相对路径', required: true },
+      },
+      handler: async (args) => {
+        const backlinks = obVault.getBacklinks(args.path as string);
+        if (backlinks.length === 0) return `没有笔记链接到 ${args.path}`;
+        return `以下笔记链接到 ${args.path}：\n${backlinks.map((b) => `• ${b}`).join('\n')}`;
+      },
+    });
+
+    tools.push({
+      name: 'ob_stats',
+      description: '查看 Obsidian 知识库统计信息',
+      parameters: {},
+      handler: async () => {
+        const stats = obVault.getStats();
+        return `📊 知识库统计\n\n• 笔记总数：${stats.totalNotes}\n• 总大小：${(stats.totalSize / 1024).toFixed(1)} KB\n• 链接总数：${stats.totalLinks}\n• 标签数：${Object.keys(stats.tags).length}\n\n最近修改：\n${stats.recentNotes.map((n) => `• ${n.title}（${n.path}）— ${n.modifiedAt.slice(0, 10)}`).join('\n')}`;
+      },
+    });
+  }
+
+  // ──────────────────────────────────────────
+  // 记忆压缩层工具（可选）
+  // ──────────────────────────────────────────
+
+  if (memoryBus) {
+    tools.push({
+      name: 'memory_store',
+      description: '存储一条压缩观察（任务完成后的要点摘要，供其他专家快速召回）',
+      parameters: {
+        namespace: { type: 'string', description: '命名空间（项目/会话ID）', required: true },
+        expert_id: { type: 'string', description: '来源专家 ID', required: true },
+        summary: { type: 'string', description: '要点摘要', required: true },
+        key_facts: { type: 'array', description: '关键事实列表' },
+        tags: { type: 'array', description: '标签列表' },
+      },
+      handler: async (args) => {
+        const obs = memoryBus.store({
+          namespace: args.namespace as string,
+          sourceExpertId: args.expert_id as string,
+          summary: args.summary as string,
+          keyFacts: (args.key_facts as string[]) || [],
+          tags: (args.tags as string[]) || [],
+        });
+        return `✅ 记忆已存储（${obs.id}）\n摘要：${obs.summary.slice(0, 100)}...`;
+      },
+    });
+
+    tools.push({
+      name: 'memory_recall',
+      description: '按关键词召回相关记忆（压缩后的要点，避免重读原文）',
+      parameters: {
+        namespace: { type: 'string', description: '命名空间', required: true },
+        query: { type: 'string', description: '搜索关键词', required: true },
+        max_results: { type: 'number', description: '最大结果数（默认10）' },
+      },
+      handler: async (args) => {
+        const results = memoryBus.recall(
+          args.namespace as string,
+          args.query as string,
+          (args.max_results as number) || 10,
+        );
+        if (results.length === 0) return `命名空间「${args.namespace}」中没有匹配「${args.query}」的记忆。`;
+        return results.map((r) => `• [${r.sourceExpertId}] ${r.summary}\n  关键事实：${r.keyFacts.join('; ') || '无'}`).join('\n\n');
+      },
+    });
+
+    tools.push({
+      name: 'memory_stats',
+      description: '查看记忆总线统计信息',
+      parameters: {
+        namespace: { type: 'string', description: '命名空间', required: true },
+      },
+      handler: async (args) => {
+        const stats = memoryBus.getStats(args.namespace as string);
+        return `📊 记忆统计（${args.namespace}）\n\n• 观察总数：${stats.totalObservations}\n• 参与专家：${stats.experts.join(', ') || '无'}\n• 存储大小：${(stats.totalSize / 1024).toFixed(1)} KB\n\n热门标签：\n${stats.topTags.map((t) => `• ${t.tag}（${t.count}次）`).join('\n') || '无标签'}`;
+      },
+    });
+  }
 
   return tools;
 }
